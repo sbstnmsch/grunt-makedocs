@@ -137,6 +137,11 @@ module.exports = function(grunt) {
             if (typeof config.layout === 'undefined') {
               config.layout = 'default';
             }
+            marked.setOptions({
+              highlight: function (code) {
+                return require('highlight.js').highlightAuto(code).value;
+              }
+            });
             config.content = marked(config['__content']);
             delete config['__content'];
             config.dest = path.resolve(file.dest);
