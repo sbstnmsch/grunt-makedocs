@@ -21,6 +21,13 @@ module.exports = function(grunt) {
     var vm = require('vm');
     var fs = require('fs');
     var Handlebars = require('handlebars');
+    var done = this.async();
+
+    setTimeout(function() {
+      grunt.log.error('Timeout.');
+      done();
+    }, 60000);
+
     // Load and use polyfill for ECMA-402.
     if (!global.Intl) {
         global.Intl = require('intl');
@@ -114,6 +121,7 @@ module.exports = function(grunt) {
       this.task = task;
       this.templates = {};
       this.pages = [];
+      this.pages = [];
 
       this.run = function() {
 
@@ -152,14 +160,23 @@ module.exports = function(grunt) {
         }, this);
 
         // Set up nav if needed
-        if (options.nav && typeof options.nav === 'function') {
-          options.nav(this.pages);
-        }
+        options
+          .nav(this.pages, function(resolvedPages) {
+            // Make all the pages
+            resolvedPages.forEach(function(page) {
 
-        // Make all the pages
-        this.pages.forEach(function(page, i) {
-          this.makeLayout(page);
-        }, this);
+              var writePath = path.resolve(page.dest);
+              var layoutPath = path.resolve(path.join(options.layoutsDir, page.layout+'.mustache'));
+              var layoutHTML = grunt.file.read(layoutPath);
+              var template = Handlebars.compile(layoutHTML, { noEscape: true });
+              var html = template(page);
+              grunt.file.write(writePath, html);
+              grunt.log.ok("Wrote " + page.title.cyan);
+
+            }, this);
+            done();
+          });
+
 
       };
 
@@ -181,25 +198,6 @@ module.exports = function(grunt) {
           var componentHTML = grunt.file.read(file);
           templates[componentName] = Handlebars.compile(componentHTML, { noEscape: true });
         });
-      };
-
-      // Create HTML from layout template
-      this.makeLayout = function(config) {
-
-        var writePath = path.resolve(config.dest);
-        var layoutPath = path.resolve(path.join(options.layoutsDir, config.layout+'.mustache'));
-        var layoutHTML = grunt.file.read(layoutPath);
-        var template = Handlebars.compile(layoutHTML, { noEscape: true });
-        var html = template(config);
-        // Better to precompile scripts into components instead of doing it at runtime
-        this.addComponents(html, function(err, completeHTML) {
-          if (err) {
-            grunt.log.warn('Could not add components');
-          }
-          grunt.file.write(writePath, completeHTML);
-          grunt.log.ok("Wrote file to " + writePath);
-        });
-
       };
 
       // This is a hacky way to get the JS function calls
@@ -239,9 +237,9 @@ module.exports = function(grunt) {
 
           }
 
-          if (i === scripts.length - 1) {
+          //if (i === scripts.length - 1) {
             onComplete(null, $.html());
-          }
+          //}
 
         });
 
@@ -259,3 +257,4 @@ module.exports = function(grunt) {
   });
 
 };
+
